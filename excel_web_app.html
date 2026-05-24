@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Management System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.5.25/jsrsasign-all-min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --header-bg: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 20px;
+            flex-wrap: wrap;
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-right: 20px;
+        }
+
+        .search-container {
+            position: relative;
+            flex-grow: 1;
+            max-width: 400px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+        }
+
+        .module-tabs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 16px;
+        }
+
+        .module-btn {
+            border: 1px solid var(--border);
+            background: #fff;
+            color: #475569;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.2s;
+        }
+
+        .module-btn:hover,
+        .module-btn.active {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: #eef2ff;
+        }
+
+        .table-wrapper {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: auto;
+            max-height: calc(100vh - 180px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #f1f5f9;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 2px solid var(--border);
+        }
+
+        td {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th.money-column,
+        td.money-column {
+            text-align: right;
+        }
+
+        tr:hover {
+            background: #f8fafc;
+        }
+
+        .loading-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 5000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Login Styles */
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background: #fff;
+            z-index: 4000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2.5rem;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
+
+        .login-card h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        #mainContent {
+            display: none;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: #fff;
+            width: 98%;
+            max-width: 1600px;
+            max-height: 95vh;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .edit-form-group {
+            margin-bottom: 1rem;
+        }
+
+        .edit-form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        /* History Modal Styles */
+        .history-section {
+            display: none;
+            padding: 1rem;
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+
+        .history-item {
+            background: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            overflow-x: auto;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            table-layout: auto;
+        }
+
+        .history-table th {
+            background: #f1f5f9;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+
+        .history-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .history-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .diff-changed {
+            color: #e11d48;
+            font-weight: 800;
+            background: #fff1f2;
+        }
+
+        /* Summary Bar */
+        .summary-container {
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .summary-table th {
+            text-align: left;
+            color: #64748b;
+            font-weight: 700;
+            padding: 5px 15px;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        .summary-table td {
+            padding: 5px 15px;
+            font-weight: 800;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .summary-table tr:first-child th,
+        .summary-table tr:first-child td {
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .summary-table tr:last-child th,
+        .summary-table tr:last-child td {
+            padding-top: 10px;
+        }
+
+        .summary-table .highlight {
+            color: #10b981;
+        }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #475569;
+            font-weight: 700;
+        }
+
+        .btn-restore {
+            background: #eff6ff;
+            color: var(--primary);
+            border: 1px solid #bfdbfe;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-weight: 700;
+            transition: 0.2s;
+        }
+
+        .btn-restore:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-view-history {
+            background: none;
+            border: 1.5px solid var(--primary);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-view-history:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-save {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-save:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-cancel {
+            background: #f1f5f9;
+            color: #475569;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-logout {
+            padding: 10px 18px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-logout:hover {
+            background: #b91c1c;
+            color: #fff;
+            border-color: #b91c1c;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 15px;
+        }
+
+        .pagination-btn {
+            padding: 10px 20px;
+            border: 1px solid var(--border);
+            background: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: #f8fafc;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h2>USER LOGIN</h2>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" class="form-input" placeholder="Enter username">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" class="form-input" placeholder="Enter password">
+            </div>
+            <button class="login-btn" onclick="handleLogin()">LOGIN</button>
+            <p id="loginError"
+                style="color: #e11d48; font-size: 0.85rem; margin-top: 15px; text-align: center; display: none; font-weight: 600;">
+            </p>
+        </div>
+    </div>
+
+    <div id="mainContent">
+
+        <!-- Edit Modal -->
+        <div id="editModal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="editModalTitle" style="font-weight: 800; color: var(--primary); font-size: 1.25rem;">EDIT DATA</h3>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <button class="btn-view-history" id="viewHistoryBtn" onclick="toggleHistory()">View history</button>
+                        <button onclick="closeEditModal()"
+                            style="border:none; background:none; cursor:pointer; color:#94a3b8;">
+                            <i data-lucide="x" style="width: 28px;"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-body" id="editForm">
+                    <!-- Inputs injected here -->
+                </div>
+                <div id="rowHistory" class="history-section">
+                    <!-- History items injected here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+                    <button class="btn-save" id="saveEditBtn" onclick="saveEdit()">Save changes</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading-mask">
+            <div class="spinner"></div>
+            <p style="font-weight: 700; color: var(--primary);">Processing data...</p>
+        </div>
+
+        <div class="header-container">
+            <div style="display:flex; align-items:center;">
+                <h1 id="pageTitle">EXCEL WEB APP</h1>
+                <div class="module-tabs">
+                    <button id="dataModuleBtn" class="module-btn active" onclick="switchModule('data')">
+                        <i data-lucide="table-2" style="width:16px;"></i> Data
+                    </button>
+                    <button id="userModuleBtn" class="module-btn" onclick="switchModule('users')">
+                        <i data-lucide="users" style="width:16px;"></i> Users
+                    </button>
+                </div>
+                <div class="search-container">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="SEARCH..."
+                        oninput="filterTable()">
+                </div>
+                <button id="addUserBtn" class="module-btn" onclick="openAddUserModal()" style="display:none;">
+                    <i data-lucide="plus" style="width:16px;"></i> Add
+                </button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:20px;">
+                <div style="text-align: right;">
+                    <div id="userNameDisplay" style="font-weight:800; font-size:1rem; color:var(--text);"></div>
+                    <div id="userRoleDisplay"
+                        style="font-size:0.8rem; color:#64748b; text-transform: uppercase; font-weight:600;"></div>
+                </div>
+                <button onclick="handleLogout()" class="btn-logout">
+                    <i data-lucide="log-out" style="width:18px;"></i> LOG OUT
+                </button>
+            </div>
+        </div>
+
+        <div class="summary-container" id="summaryContainer">
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th style="width: 200px;">Summary</th>
+                        <th>Treys Payments</th>
+                        <th>Bills Payments</th>
+                        <th>Total Costs</th>
+                        <th>Estimated</th>
+                        <th>Payments</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryTableBody">
+                    <tr>
+                        <th>Total:</th>
+                        <td id="tot-trey">$0,00</td>
+                        <td id="tot-bill">$0,00</td>
+                        <td id="tot-cost">$0,00</td>
+                        <td id="tot-est">$0,00</td>
+                        <td id="tot-payments">$0,00</td>
+                    </tr>
+                    <tr>
+                        <th class="highlight">Total Build Cost:</th>
+                        <td id="tbc-trey" class="highlight">$0,00</td>
+                        <td id="tbc-bill" class="highlight">$0,00</td>
+                        <td id="tbc-cost" class="highlight">$0,00</td>
+                        <td id="tbc-est" class="highlight">$0,00</td>
+                        <td id="tbc-payments" class="highlight">$0,00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-wrapper" id="tableWrapper">
+            <table id="dataTable">
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="pagination" class="pagination"></div>
+
+        <script>
+            const CONFIG = {
+                spreadsheetId: "1Ykj3lrKr3wELlUKLzI1IJOJZG1zbpt53Amlao27nTyo",
+                serviceAccountEmail: "test-gia-ason@api-test-sheet-161.iam.gserviceaccount.com",
+                privateKey: `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC3NN84hLTkQPZd
+Lj7niXZTICq7nHsuTn3J6r2Paq12m70/lYSmrwh1i0EStr9bO19QM8cevGlslwGr
+WSVOLJlc6+w1HGPKvRXtA41kYV9MYIvpzIPQtkFE7Hxq71QyBARcv39Lfzze6Ioj
+3G8VBvAKFLAnCUr97GHRv+KbCTFxPZupd3PEB+xS5ZUlzdBCEZvDid3iXaaEJJ+l
+Td1apAGQHjtnDTLOkiTa8zf7X5ebALwnI9MziOdN8VyprHXGhkachPbKyrG0QwEs
+2jtiI6Y5ULsBPjNefoavH8MKU5DEAT9h0fZ7KfsKYVMDuXqmEKBs0D3B4Z6aDZQW
+wT2dDRZDAgMBAAECggEAEIuVoSzZVuFhaz1GI9ji0IacjvO50cIq7M8Zrj4/F756
+Ew6PIhKENafAb7U4INm2AnzUMO8CqL9Jpxs85qUM3W4JysSByqLUiRW2184amIyb
+j7jCXfLBTQn8AbHgrUepl5d/vBmFYMgon/mqjbNiGDb4FZgEQSkie5o6fi/dWp5d
+NahbZl+WTOB/znhAfKh/zferHNxldR/ERmwOubZUerkqysWiBigc3ovpLSUof9ur
+z3hNPPp0CKQjF40xuQc6FYTHUHMLuMvp78PXuc/mYqQmZ8VOGhU+faGtZ4m+QJly
+dF5dS8U5cwKEF+ptuAUiWSahn6INb9yKn3+FcsW0UQKBgQDb8N4eWFvbgpRo/vxo
+wBN2u2TWubj6clcrq/1a+VR0njC28Can0ogJHhrFhPxVs5D/rugs3HlbyAXJFptY
+V0DZPCwBxGU5P5RbGjXWWEUXjp4ISKQD8WKfVlXNr79TqLdOg2NZBYQAi06Cpo/T
+PV9l7LSG2Tj/9WdvD7W2wvrpaQKBgQDVPjpJN6xh7+sHtSU0mjKvrqigpHbuSQ/o
+XpUaWSIpJffm5QpFPAOcTT5mHZCyllicJQIrfPSY+sH8n+sF03CUqVkV4Q2UqfOf
+pFaLDB4P6SQ8iesZyF4VKFrj/cAvRJmp0e5W/DRnFkoEp+8c+nrru2+Dzm9kb7Uq
+0CiltqYAywKBgBtcfrV1to+7Ue0x84KwintV2rifyDRX7yI+tjkQFYKgf1zyyUxN
+c6D2vsvdvGqI+TvlrXqPPwW8/4NBrbeyux2LT8o0fYc+sp0WyKXOu2Gv21caelUH
+PYam/eultn6Y2Z0J2V0kw4Qx0GWOhQv5cZnDdb3k3iNxixmU8b03ynEpAoGBAKEA
+7O0fNe50QRZ+tOq0ihSPYQ55XrqnO3WNBDLynZJH8pbI1CpWF7vJrpVXOUs9rQWo
+A61mGR/wJMtiywaJEHWOL48PbzuR3jno0NcHfSMyOoPi9jlvSWncIFQH4TVPLF5F
+/Rh8L+ytrZE6YpWUoX6e9KGmGgDRPw5mQGpuL4RlAoGADe9n080SXlsUk4nHVjUz
+Efv7EBoBkgOpqb9T1foRfJl46NxmmTOYV3iGIhjwcDskEg284k4iq/gH6EEFyEBc
+Vz13jzB1nBgjfezFesVQz7bA/+Wik6HZtxAxVg38BKMt+Q1tYw9wOjbGPqOn++VC
+sR2Sh8e3h3Knd6j1tceRIFU=
+-----END PRIVATE KEY-----`,
+                tokenUrl: "https://oauth2.googleapis.com/token",
+                tabs: {
+                    'data': { range: 'data!A1:ZZ' },
+                    'users': { range: 'users!A1:D' },
+                    'history': { range: 'history!A1:G' }
+                }
+            };
+
+            let currentTab = 'data', allHeaders = [], allData = [], accessToken = null, tokenExpiry = 0;
+            let currentPage = 1, rowsPerPage = 100, filteredData = [];
+            let editingRowIndex = -1;
+            const moduleTitles = {
+                data: 'EXCEL WEB APP',
+                users: 'USER MODULE'
+            };
+
+            async function getAccessToken() {
+                if (accessToken && Date.now() < tokenExpiry - 300000) return accessToken;
+                const header = { alg: "RS256", typ: "JWT" }, now = Math.floor(Date.now() / 1000),
+                    payload = { iss: CONFIG.serviceAccountEmail, scope: "https://www.googleapis.com/auth/spreadsheets", aud: CONFIG.tokenUrl, exp: now + 3600, iat: now };
+                const sJWT = KJUR.jws.JWS.sign("RS256", JSON.stringify(header), JSON.stringify(payload), CONFIG.privateKey);
+                const res = await fetch(CONFIG.tokenUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${sJWT}` });
+                const data = await res.json();
+                accessToken = data.access_token; tokenExpiry = Date.now() + (data.expires_in * 1000);
+                return accessToken;
+            }
+
+            async function fetchData() {
+                document.getElementById('loading').style.display = 'flex';
+                try {
+                    const token = await getAccessToken();
+                    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.tabs[currentTab].range}`, { headers: { Authorization: `Bearer ${token}` } });
+                    const data = await res.json();
+                    const rawRows = data.values || [];
+
+                    if (rawRows.length > 0) {
+                        allHeaders = rawRows[0];
+                        allData = rawRows.slice(1).map((row, i) => {
+                            const arr = Array.isArray(row) ? [...row] : [];
+                            arr._sheetRow = i + 2;
+                            return arr;
+                        });
+                    } else {
+                        allHeaders = [];
+                        allData = [];
+                    }
+                    currentPage = 1;
+                    filteredData = [...allData];
+                    renderModuleState();
+                    renderHeaders();
+                    renderTable();
+                    if (currentTab === 'data') updateSummary();
+                } catch (e) {
+                    alert("Error loading data. Please check your connection.");
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
+                }
+            }
+
+            async function switchModule(tabName) {
+                if (!CONFIG.tabs[tabName] || currentTab === tabName) return;
+                if (tabName === 'users' && !isAdminUser()) {
+                    alert("You do not have permission to manage users.");
+                    return;
+                }
+                currentTab = tabName;
+                document.getElementById('searchInput').value = '';
+                await fetchData();
+            }
+
+            function renderModuleState() {
+                const isAdmin = isAdminUser();
+                document.getElementById('pageTitle').innerText = moduleTitles[currentTab] || 'EXCEL WEB APP';
+                document.getElementById('summaryContainer').style.display = currentTab === 'data' ? 'block' : 'none';
+                document.getElementById('dataModuleBtn').classList.toggle('active', currentTab === 'data');
+                document.getElementById('userModuleBtn').classList.toggle('active', currentTab === 'users');
+                document.getElementById('addUserBtn').style.display = isAdmin && currentTab === 'users' ? 'flex' : 'none';
+            }
+
+            function applyUserPermissions() {
+                const isAdmin = isAdminUser();
+                document.getElementById('userModuleBtn').style.display = isAdmin ? 'flex' : 'none';
+                if (!isAdmin && currentTab === 'users') currentTab = 'data';
+            }
+
+            function getCurrentUser() {
+                return JSON.parse(localStorage.getItem('userData') || '{}');
+            }
+
+            function isAdminUser() {
+                const u = getCurrentUser();
+                return String(u.role || '').trim().toLowerCase() === 'admin';
+            }
+
+            function renderHeaders() {
+                const head = document.getElementById('tableHead');
+                const moneyColumns = new Set(["Treys Payments", "Bills Payments", "Total Costs", "Estimated", "Payments"]);
+                head.innerHTML = `<tr><th style="width:50px;">Edit</th>${allHeaders.map(h => {
+                    if (shouldHideTableColumn(h)) return '';
+                    return `<th class="${moneyColumns.has(h) ? 'money-column' : ''}">${h}</th>`;
+                }).join('')}</tr>`;
+            }
+
+            function renderTable() {
+                const tbody = document.getElementById('tableBody');
+                const start = (currentPage - 1) * rowsPerPage;
+                const pageData = filteredData.slice(start, start + rowsPerPage);
+                const moneyColumns = new Set(["Treys Payments", "Bills Payments", "Total Costs", "Estimated", "Payments"]);
+
+                tbody.innerHTML = pageData.map(row => {
+                    const cells = allHeaders.map((header, idx) => {
+                        if (shouldHideTableColumn(header)) return '';
+                        const val = row[idx] ?? '';
+                        const className = moneyColumns.has(header) ? ' class="money-column"' : '';
+                        if (String(val).startsWith('http')) return `<td${className}><a href="${val}" target="_blank" style="color:var(--primary);font-weight:600;">Link</a></td>`;
+                        return `<td${className}>${val}</td>`;
+                    }).join('');
+                    return `<tr><td><button onclick="openEditModal(${row._sheetRow})" style="border:none;background:#f1f5f9;padding:6px;border-radius:6px;cursor:pointer;"><i data-lucide="edit-3" style="width:16px;color:var(--primary);"></i></button></td>${cells}</tr>`;
+                }).join('');
+                renderPagination();
+                lucide.createIcons();
+            }
+
+            function shouldHideTableColumn(header) {
+                return currentTab === 'users' && String(header || '').trim().toLowerCase() === 'password';
+            }
+
+            function renderPagination() {
+                const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+                const pagEl = document.getElementById('pagination');
+                if (filteredData.length <= rowsPerPage) { pagEl.innerHTML = ''; return; }
+                pagEl.innerHTML = `
+                    <button class="pagination-btn" onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''}><i data-lucide="chevron-left" style="width:16px;"></i> Prev</button>
+                    <div class="page-info">Page ${currentPage} / ${totalPages}</div>
+                    <button class="pagination-btn" onclick="changePage(1)" ${currentPage === totalPages ? 'disabled' : ''}>Next <i data-lucide="chevron-right" style="width:16px;"></i></button>`;
+                lucide.createIcons();
+            }
+
+            function changePage(delta) { currentPage += delta; renderTable(); }
+            function filterTable() {
+                const v = document.getElementById('searchInput').value.toLowerCase();
+                filteredData = allData.filter(r => r.some(c => String(c).toLowerCase().includes(v)));
+                currentPage = 1;
+                renderTable();
+                if (currentTab === 'data') updateSummary();
+            }
+
+            function parseCurrency(val) {
+                if (!val) return 0;
+                // Format: $3.753,98 -> 3753.98
+                let s = String(val).replace('$', '').trim();
+                s = s.split('.').join(''); // Remove thousand dots
+                s = s.replace(',', '.'); // Change decimal comma to dot
+                return parseFloat(s) || 0;
+            }
+
+            function formatCurrency(val) {
+                const parts = val.toFixed(2).split('.');
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                return `$${parts[0]},${parts[1]}`;
+            }
+
+            function updateSummary() {
+                const totalItemsList = [
+                    "Plans, Demo, Survey", "Permits", "Trash / Site Maintenance", "Trash / Site Maintenace",
+                    "Piling/Foundation / Masonry", "Piling/Foundation / Masonary",
+                    "Frame Material & Labor", "Roof & Floor Trusses", "Interior Stairs", "Windows / Sliding Glass Doors",
+                    "Electrical", "Lighting Fixtures / Ceiling Fans", "Plumbing", "Plumbing Fixtures, & Tubs",
+                    "HVAC", "Stucco / Siding / Stone veneer", "Stucco Exterior & Interior Garage",
+                    "Insulation", "Soffit and Ceilings", "Roof", "Drywall",
+                    "Interior Doors & Front Door", "Garage Doors", "Interior / Exterior Paint", "Decks & Railings",
+                    "Elevator", "Door Hardware & Closet Shelving", "Trimwork", "Cabinets", "Counter Tops",
+                    "Appliances & Fireplace", "Gas Service and Water Heaters", "Tile & Stone", "Shower Doors and Mirrors",
+                    "Wood Floor", "Garage Floor", "Landscape and Sod", "Wall and Gates", "Wall & Gates", "Patio / Driveway",
+                    "Final Clean", "Punchout", "Pool", "Dock", "Misc."
+                ];
+
+                const extraBuildCostItems = [
+                    "Trey", "Lot Purchase Cost", "Taxes", "Utilities /Insurance", "Utilities /Insurance to 8/29/26",
+                    "Utlilties /Insurance"
+                ];
+
+                const normalizeItemName = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+                const totalItemsSet = new Set(totalItemsList.map(normalizeItemName));
+                const extraBuildCostSet = new Set(extraBuildCostItems.map(normalizeItemName));
+
+                const cols = {
+                    "trey": { label: "Treys Payments", total: 0, extra: 0, elTot: 'tot-trey', elTbc: 'tbc-trey' },
+                    "bill": { label: "Bills Payments", total: 0, extra: 0, elTot: 'tot-bill', elTbc: 'tbc-bill' },
+                    "cost": { label: "Total Costs", total: 0, extra: 0, elTot: 'tot-cost', elTbc: 'tbc-cost' },
+                    "est": { label: "Estimated", total: 0, extra: 0, elTot: 'tot-est', elTbc: 'tbc-est' },
+                    "payments": { label: "Payments", total: 0, extra: 0, elTot: 'tot-payments', elTbc: 'tbc-payments' }
+                };
+
+                Object.keys(cols).forEach(k => {
+                    const idx = allHeaders.indexOf(cols[k].label);
+                    cols[k].idx = idx;
+                });
+
+                allData.forEach(row => {
+                    const itemName = normalizeItemName(row[0]);
+                    Object.keys(cols).forEach(k => {
+                        if (cols[k].idx === -1) return;
+                        const val = parseCurrency(row[cols[k].idx]);
+                        if (totalItemsSet.has(itemName)) {
+                            cols[k].total += val;
+                        } else if (extraBuildCostSet.has(itemName)) {
+                            cols[k].extra += val;
+                        }
+                    });
+                });
+
+                Object.keys(cols).forEach(k => {
+                    document.getElementById(cols[k].elTot).innerText = formatCurrency(cols[k].total);
+                    document.getElementById(cols[k].elTbc).innerText = formatCurrency(cols[k].total + cols[k].extra);
+                });
+            }
+
+            function openEditModal(sheetRow) {
+                if (currentTab === 'users' && !isAdminUser()) {
+                    alert("You do not have permission to edit users.");
+                    return;
+                }
+                editingRowIndex = sheetRow;
+                const row = allData.find(r => r._sheetRow === sheetRow);
+                document.getElementById('editModalTitle').innerText = 'EDIT DATA';
+                document.getElementById('viewHistoryBtn').style.display = isAdminUser() ? 'inline-block' : 'none';
+                document.getElementById('saveEditBtn').innerText = 'Save changes';
+                document.getElementById('saveEditBtn').onclick = () => saveEdit();
+                document.getElementById('editForm').innerHTML = allHeaders.map((h, i) => {
+                    return `
+                    <div class="edit-form-group"><label>${h}</label><input type="text" class="form-input row-input" data-idx="${i}" value="${row[i] ?? ''}"></div>`;
+                }).join('');
+                document.getElementById('editModal').style.display = 'flex';
+                lucide.createIcons();
+            }
+
+            function openAddUserModal() {
+                if (currentTab !== 'users' || !isAdminUser()) return;
+                editingRowIndex = -1;
+                document.getElementById('editModalTitle').innerText = 'ADD USER';
+                document.getElementById('viewHistoryBtn').style.display = 'none';
+                document.getElementById('rowHistory').style.display = 'none';
+                document.getElementById('saveEditBtn').innerText = 'Add user';
+                document.getElementById('saveEditBtn').onclick = () => saveNewUser();
+                document.getElementById('editForm').innerHTML = allHeaders.map((h, i) => {
+                    const defaultValue = String(h || '').trim().toLowerCase() === 'password' ? '1' : '';
+                    return `
+                    <div class="edit-form-group"><label>${h}</label><input type="text" class="form-input row-input" data-idx="${i}" value="${defaultValue}"></div>`;
+                }).join('');
+                document.getElementById('editModal').style.display = 'flex';
+                lucide.createIcons();
+            }
+
+            function closeEditModal() {
+                document.getElementById('editModal').style.display = 'none';
+                document.getElementById('rowHistory').style.display = 'none';
+                editingRowIndex = -1;
+            }
+
+            async function saveEdit(actionType = 'UPDATE') {
+                if (currentTab === 'users' && !isAdminUser()) {
+                    alert("You do not have permission to edit users.");
+                    return;
+                }
+                if (actionType === 'RESTORE' && !isAdminUser()) {
+                    alert("Only admin can restore old versions.");
+                    return;
+                }
+                const inputs = document.querySelectorAll('.row-input');
+                const newRow = []; inputs.forEach(inp => newRow[parseInt(inp.dataset.idx)] = inp.value);
+                const oldRow = allData.find(r => r._sheetRow === editingRowIndex);
+                document.getElementById('loading').style.display = 'flex';
+                try {
+                    const token = await getAccessToken();
+                    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${currentTab}!A${editingRowIndex}?valueInputOption=USER_ENTERED`, {
+                        method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values: [newRow] })
+                    });
+                    if (!res.ok) throw new Error();
+
+                    const user = JSON.parse(localStorage.getItem('userData') || '{}');
+                    const historyEntry = [new Date().toLocaleString('en-US'), user.id || 'N/A', actionType, currentTab, editingRowIndex, JSON.stringify(oldRow), JSON.stringify(newRow)];
+                    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/history!A:A:append?valueInputOption=USER_ENTERED`, {
+                        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values: [historyEntry] })
+                    });
+                    alert("Success!"); closeEditModal(); await fetchData();
+                } catch (e) { alert("Error saving changes."); } finally { document.getElementById('loading').style.display = 'none'; }
+            }
+
+            async function saveNewUser() {
+                if (!isAdminUser()) {
+                    alert("You do not have permission to add users.");
+                    return;
+                }
+                const inputs = document.querySelectorAll('.row-input');
+                const newRow = []; inputs.forEach(inp => newRow[parseInt(inp.dataset.idx)] = inp.value);
+                document.getElementById('loading').style.display = 'flex';
+                try {
+                    const token = await getAccessToken();
+                    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/users!A:D:append?valueInputOption=USER_ENTERED`, {
+                        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values: [newRow] })
+                    });
+                    if (!res.ok) throw new Error();
+
+                    const user = JSON.parse(localStorage.getItem('userData') || '{}');
+                    const historyEntry = [new Date().toLocaleString('en-US'), user.id || 'N/A', 'ADD', 'users', '', JSON.stringify([]), JSON.stringify(newRow)];
+                    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/history!A:A:append?valueInputOption=USER_ENTERED`, {
+                        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values: [historyEntry] })
+                    });
+                    alert("Success!"); closeEditModal(); await fetchData();
+                } catch (e) { alert("Error adding user."); } finally { document.getElementById('loading').style.display = 'none'; }
+            }
+
+            async function toggleHistory() {
+                if (!isAdminUser()) {
+                    alert("Only admin can view history.");
+                    return;
+                }
+                const el = document.getElementById('rowHistory');
+                if (el.style.display === 'block') { el.style.display = 'none'; return; }
+                el.innerHTML = '<p style="text-align:center;padding:20px;">Loading...</p>'; el.style.display = 'block';
+                try {
+                    const token = await getAccessToken();
+                    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/history!A2:G`, { headers: { Authorization: `Bearer ${token}` } });
+                    const data = await res.json();
+                    const logs = (data.values || []).filter(h => h[3] === currentTab && parseInt(h[4]) === editingRowIndex).reverse();
+                    if (!logs.length) { el.innerHTML = '<p style="text-align:center;padding:20px;">No history found.</p>'; return; }
+
+                    let tableHtml = `
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    ${allHeaders.map(h => `<th>${h}</th>`).join('')}
+                                    <th>Restore</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    tableHtml += logs.map(h => {
+                        const oldRow = JSON.parse(h[5] || '[]');
+                        const newRow = JSON.parse(h[6] || '[]');
+
+                        const dataCells = allHeaders.map((_, i) => {
+                            const isChanged = oldRow[i] !== newRow[i];
+                            return `<td class="${isChanged ? 'diff-changed' : ''}" title="${newRow[i] ?? ''}">${newRow[i] ?? ''}</td>`;
+                        }).join('');
+
+                        return `
+                            <tr>
+                                <td>${h[0]}</td>
+                                <td>${h[1]}</td>
+                                <td>${h[2]}</td>
+                                ${dataCells}
+                                <td><button class="btn-restore" onclick='restoreState(${h[6]})'>Restore</button></td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    tableHtml += `</tbody></table>`;
+                    el.innerHTML = tableHtml;
+                } catch (e) { console.error(e); el.innerHTML = 'Error loading history.'; }
+            }
+
+            async function restoreState(data) {
+                if (!isAdminUser()) {
+                    alert("Only admin can restore old versions.");
+                    return;
+                }
+                if (!confirm("Restore to this state?")) return;
+                document.querySelectorAll('.row-input').forEach(inp => inp.value = data[parseInt(inp.dataset.idx)] ?? '');
+                await saveEdit('RESTORE');
+            }
+
+            async function init() {
+                lucide.createIcons();
+                if (localStorage.getItem('isLoggedIn')) {
+                    const u = JSON.parse(localStorage.getItem('userData') || '{}');
+                    document.getElementById('userNameDisplay').innerText = u.name || '';
+                    document.getElementById('userRoleDisplay').innerText = u.role || '';
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                    applyUserPermissions();
+                    await fetchData();
+                }
+            }
+
+            async function handleLogin() {
+                const user = document.getElementById('username').value.trim();
+                const pass = document.getElementById('password').value.trim();
+                if (!user || !pass) return;
+                document.getElementById('loading').style.display = 'flex';
+                try {
+                    const token = await getAccessToken();
+                    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/users!A2:D`, { headers: { Authorization: `Bearer ${token}` } });
+                    const users = (await res.json()).values || [];
+                    const found = users.find(u => u[0] === user && u[3] === pass);
+                    if (found) {
+                        localStorage.setItem('isLoggedIn', 'true');
+                        localStorage.setItem('userData', JSON.stringify({ name: found[1], id: found[0], role: found[2] }));
+                        location.reload();
+                    } else { document.getElementById('loginError').innerText = "Invalid username or password."; document.getElementById('loginError').style.display = 'block'; }
+                } catch (e) { alert("Login error."); } finally { document.getElementById('loading').style.display = 'none'; }
+            }
+
+            function handleLogout() { localStorage.clear(); location.reload(); }
+            init();
+        </script>
+    </div>
+</body>
+
+</html>
