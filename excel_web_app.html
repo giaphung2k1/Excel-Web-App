@@ -269,6 +269,19 @@
             cursor: cell;
         }
 
+        #dataTable.excel-grid td.cell-calculated {
+            cursor: default;
+            background: #f1f5f9 !important;
+        }
+
+        #dataTable.excel-grid tbody tr:nth-child(odd) td.cell-calculated {
+            background: #e8f0fe !important;
+        }
+
+        #dataTable.excel-grid tbody tr.row-highlight-last td.cell-calculated {
+            background: #fff3b0 !important;
+        }
+
         #dataTable.excel-grid td.cell-editing {
             padding: 0;
             background: #fff !important;
@@ -985,6 +998,7 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                     }
                     currentPage = 1;
                     filteredData = [...allData];
+                    if (currentTab === 'data') recalculateAllTotalCosts();
                     renderModuleState();
                     renderHeaders();
                     renderTable();
@@ -1020,6 +1034,44 @@ sR2Sh8e3h3Knd6j1tceRIFU=
             }
 
             const MONEY_HEADERS = new Set(["Treys Payments", "Bills Payments", "Total Costs", "Estimated", "Payments"]);
+
+            function getTotalCostsColumnIndices() {
+                return {
+                    trey: allHeaders.indexOf('Treys Payments'),
+                    bill: allHeaders.indexOf('Bills Payments'),
+                    cost: allHeaders.indexOf('Total Costs')
+                };
+            }
+
+            function calculateTotalCostsValue(row) {
+                const { trey, bill } = getTotalCostsColumnIndices();
+                if (trey === -1 || bill === -1) return '';
+                const treyVal = row[trey] ?? '';
+                const billVal = row[bill] ?? '';
+                const sum = parseCurrency(treyVal) + parseCurrency(billVal);
+                if (!sum && !String(treyVal).trim() && !String(billVal).trim()) return '';
+                return formatSummaryCurrency(sum);
+            }
+
+            function recalculateRowTotalCosts(row) {
+                const { cost } = getTotalCostsColumnIndices();
+                if (cost === -1) return;
+                row[cost] = calculateTotalCostsValue(row);
+            }
+
+            function recalculateAllTotalCosts() {
+                if (allHeaders.indexOf('Total Costs') === -1) return;
+                allData.forEach(recalculateRowTotalCosts);
+            }
+
+            function refreshRowTotalCostsCell(sheetRow) {
+                const { cost } = getTotalCostsColumnIndices();
+                if (cost === -1) return;
+                const row = allData.find(r => r._sheetRow === sheetRow);
+                const tr = document.querySelector(`#tableBody tr[data-sheet-row="${sheetRow}"]`);
+                const td = tr?.querySelector(`td[data-col-idx="${cost}"]`);
+                if (row && td) setCellHtml(td, 'Total Costs', cost, row[cost]);
+            }
 
             function getPaymentDetailColIndex() {
                 const payIdx = allHeaders.indexOf('Payments');
@@ -1077,7 +1129,8 @@ sR2Sh8e3h3Knd6j1tceRIFU=
             function setCellHtml(td, header, colIdx, val) {
                 const cls = getCellClass(header, colIdx);
                 const raw = getCellRawString(val);
-                td.className = `editable-cell${cls ? ' ' + cls : ''}`;
+                const baseClass = header === 'Total Costs' ? 'cell-calculated' : 'editable-cell';
+                td.className = `${baseClass}${cls ? ' ' + cls : ''}`;
                 td.dataset.colIdx = colIdx;
                 td.setAttribute('data-raw-value', raw);
                 if (String(val).startsWith('http')) {
@@ -1110,15 +1163,21 @@ sR2Sh8e3h3Knd6j1tceRIFU=
 
                 const oldRowSnapshot = buildFullRowFromData(row);
                 row[colIdx] = newValue;
+                const { trey, bill } = getTotalCostsColumnIndices();
+                if (colIdx === trey || colIdx === bill) recalculateRowTotalCosts(row);
                 const newRow = buildFullRowFromData(row);
                 td.classList.add('cell-saving');
 
                 try {
                     await saveRowData(sheetRow, newRow, oldRowSnapshot, { silent: true });
                     const filtered = filteredData.find(r => r._sheetRow === sheetRow);
-                    if (filtered) filtered[colIdx] = newValue;
+                    if (filtered) {
+                        filtered[colIdx] = newValue;
+                        if (colIdx === trey || colIdx === bill) recalculateRowTotalCosts(filtered);
+                    }
                     updateSummary();
                     setCellHtml(td, header, colIdx, newValue);
+                    if (colIdx === trey || colIdx === bill) refreshRowTotalCostsCell(sheetRow);
                 } catch (e) {
                     row[colIdx] = originalValue;
                     setCellHtml(td, header, colIdx, originalValue);
@@ -1133,6 +1192,7 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 const colIdx = Number(td.dataset.colIdx);
                 const row = allData.find(r => r._sheetRow === sheetRow);
                 if (!row || Number.isNaN(colIdx)) return;
+                if (allHeaders[colIdx] === 'Total Costs') return;
 
                 const header = allHeaders[colIdx] || '';
                 const rawVal = td.getAttribute('data-raw-value') ?? getCellEditValue(header, row[colIdx]);
@@ -1267,7 +1327,10 @@ sR2Sh8e3h3Knd6j1tceRIFU=
 
                         if (isExcel) {
                             const cls = getCellClass(header, idx);
-                            const classAttr = `editable-cell${cls ? ' ' + cls : ''}`;
+                            const isCalculated = header === 'Total Costs';
+                            const classAttr = isCalculated
+                                ? `cell-calculated${cls ? ' ' + cls : ''}`
+                                : `editable-cell${cls ? ' ' + cls : ''}`;
                             if (String(val).startsWith('http')) {
                                 return `<td class="${classAttr}" data-col-idx="${idx}"><a href="${escapeHtml(val)}" target="_blank" rel="noopener" style="color:#0563c1;font-weight:600;">Link</a></td>`;
                             }
@@ -1414,9 +1477,31 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 });
 
                 Object.keys(cols).forEach(k => {
+                    if (k === 'cost') return;
                     document.getElementById(cols[k].elTot).innerText = formatSummaryCurrency(cols[k].total);
                     document.getElementById(cols[k].elTbc).innerText = formatSummaryCurrency(cols[k].total + cols[k].extra);
                 });
+
+                if (cols.cost.idx !== -1) {
+                    const totalCost = cols.trey.total + cols.bill.total;
+                    const totalBuildCost = totalCost + cols.trey.extra + cols.bill.extra;
+                    document.getElementById(cols.cost.elTot).innerText = formatSummaryCurrency(totalCost);
+                    document.getElementById(cols.cost.elTbc).innerText = formatSummaryCurrency(totalBuildCost);
+                }
+            }
+
+            function bindModalTotalCostsRecalc(row) {
+                const { trey, bill, cost } = getTotalCostsColumnIndices();
+                if (cost === -1 || trey === -1 || bill === -1) return;
+                const costInput = document.querySelector(`.row-input[data-idx="${cost}"]`);
+                const update = () => {
+                    const draft = buildFullRowFromData(row);
+                    draft[trey] = document.querySelector(`.row-input[data-idx="${trey}"]`)?.value ?? '';
+                    draft[bill] = document.querySelector(`.row-input[data-idx="${bill}"]`)?.value ?? '';
+                    if (costInput) costInput.value = calculateTotalCostsValue(draft);
+                };
+                document.querySelector(`.row-input[data-idx="${trey}"]`)?.addEventListener('input', update);
+                document.querySelector(`.row-input[data-idx="${bill}"]`)?.addEventListener('input', update);
             }
 
             function openEditModal(sheetRow) {
@@ -1426,14 +1511,17 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 }
                 editingRowIndex = sheetRow;
                 const row = allData.find(r => r._sheetRow === sheetRow);
+                recalculateRowTotalCosts(row);
                 document.getElementById('editModalTitle').innerText = 'EDIT DATA';
                 document.getElementById('viewHistoryBtn').style.display = isAdminUser() ? 'inline-block' : 'none';
                 document.getElementById('saveEditBtn').innerText = 'Save changes';
                 document.getElementById('saveEditBtn').onclick = () => saveEdit();
                 document.getElementById('editForm').innerHTML = allHeaders.map((h, i) => {
+                    const readonly = h === 'Total Costs' ? ' readonly title="Treys Payments + Bills Payments"' : '';
                     return `
-                    <div class="edit-form-group"><label>${h}</label><input type="text" class="form-input row-input" data-idx="${i}" value="${row[i] ?? ''}"></div>`;
+                    <div class="edit-form-group"><label>${h}</label><input type="text" class="form-input row-input" data-idx="${i}" value="${row[i] ?? ''}"${readonly}></div>`;
                 }).join('');
+                bindModalTotalCostsRecalc(row);
                 document.getElementById('editModal').style.display = 'flex';
                 lucide.createIcons();
             }
@@ -1471,8 +1559,13 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                     return;
                 }
                 const inputs = document.querySelectorAll('.row-input');
-                const newRow = []; inputs.forEach(inp => newRow[parseInt(inp.dataset.idx)] = inp.value);
-                const oldRow = buildFullRowFromData(allData.find(r => r._sheetRow === editingRowIndex) || []);
+                const row = allData.find(r => r._sheetRow === editingRowIndex);
+                const oldRow = buildFullRowFromData(row || []);
+                inputs.forEach(inp => {
+                    if (row) row[parseInt(inp.dataset.idx)] = inp.value;
+                });
+                if (row) recalculateRowTotalCosts(row);
+                const newRow = buildFullRowFromData(row || []);
                 try {
                     await saveRowData(editingRowIndex, newRow, oldRow, { actionType });
                     closeEditModal();
