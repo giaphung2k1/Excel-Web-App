@@ -234,6 +234,19 @@
             background: #c5d9f7;
         }
 
+        #dataTable.excel-grid tbody tr.row-highlight-last td {
+            background: #fff9c4 !important;
+            font-weight: 700;
+        }
+
+        #dataTable.excel-grid tbody tr.row-highlight-last td.excel-stt-cell {
+            background: #f5e6a3 !important;
+        }
+
+        #dataTable.excel-grid tbody tr.row-highlight-last:hover td {
+            background: #ffef9e !important;
+        }
+
         #dataTable.excel-grid tbody td.excel-edit-cell {
             text-align: center;
             padding: 2px;
@@ -1155,6 +1168,9 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 const start = (currentPage - 1) * rowsPerPage;
                 const pageData = filteredData.slice(start, start + rowsPerPage);
                 const isExcel = currentTab === 'data';
+                const lastFourSheetRows = isExcel
+                    ? new Set(filteredData.slice(-4).map(r => r._sheetRow))
+                    : new Set();
 
                 tbody.innerHTML = pageData.map((row, rowIndex) => {
                     const stt = start + rowIndex + 1;
@@ -1182,7 +1198,8 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                         : `<td><button onclick="openEditModal(${row._sheetRow})" style="border:none;background:#f1f5f9;padding:6px;border-radius:6px;cursor:pointer;"><i data-lucide="edit-3" style="width:16px;color:var(--primary);"></i></button></td>`;
 
                     const rowAttr = isExcel ? ` data-sheet-row="${row._sheetRow}"` : '';
-                    return `<tr${rowAttr}>${sttCell}${editCell}${cells}</tr>`;
+                    const rowClass = lastFourSheetRows.has(row._sheetRow) ? ' class="row-highlight-last"' : '';
+                    return `<tr${rowClass}${rowAttr}>${sttCell}${editCell}${cells}</tr>`;
                 }).join('');
 
                 if (isExcel) {
