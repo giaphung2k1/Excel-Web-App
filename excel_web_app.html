@@ -151,6 +151,138 @@
             background: #f8fafc;
         }
 
+        /* Data module — Excel-like grid */
+        .table-wrapper.excel-mode {
+            border-radius: 0;
+            border-color: #000;
+            box-shadow: none;
+        }
+
+        #dataTable.excel-grid {
+            font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+            font-size: 0.9rem;
+            border-collapse: collapse;
+        }
+
+        #dataTable.excel-grid th,
+        #dataTable.excel-grid td {
+            border: 1px solid #000;
+            padding: 5px 8px;
+            vertical-align: middle;
+        }
+
+        #dataTable.excel-grid thead th {
+            background: #000;
+            color: #fff;
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 1px solid #000;
+        }
+
+        #dataTable.excel-grid thead th.excel-stt-col,
+        #dataTable.excel-grid tbody td.excel-stt-cell {
+            text-align: center;
+            width: 44px;
+            min-width: 44px;
+            max-width: 44px;
+            padding: 5px 4px;
+            font-weight: 600;
+            color: #333;
+            background: #f0f0f0 !important;
+            user-select: none;
+        }
+
+        #dataTable.excel-grid thead th.excel-stt-col {
+            background: #1a1a1a !important;
+            color: #fff;
+        }
+
+        #dataTable.excel-grid thead th.excel-edit-col {
+            background: #1a1a1a;
+            text-align: center;
+            width: 48px;
+            min-width: 48px;
+        }
+
+        #dataTable.excel-grid thead th.cell-label-header,
+        #dataTable.excel-grid tbody td.cell-label {
+            text-align: left;
+        }
+
+        #dataTable.excel-grid th.money-column,
+        #dataTable.excel-grid td.money-column {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        #dataTable.excel-grid tbody td.cell-payment-note {
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        #dataTable.excel-grid tbody tr:nth-child(odd) td {
+            background: #dae8fc;
+        }
+
+        #dataTable.excel-grid tbody tr:nth-child(even) td {
+            background: #fff;
+        }
+
+        #dataTable.excel-grid tbody tr:hover td {
+            background: #c5d9f7;
+        }
+
+        #dataTable.excel-grid tbody td.excel-edit-cell {
+            text-align: center;
+            padding: 2px;
+        }
+
+        #dataTable.excel-grid .excel-edit-btn {
+            border: none;
+            background: transparent;
+            padding: 4px;
+            border-radius: 0;
+            cursor: pointer;
+            line-height: 0;
+        }
+
+        #dataTable.excel-grid .excel-edit-btn:hover {
+            background: rgba(0, 0, 0, 0.08);
+        }
+
+        #dataTable.excel-grid td.editable-cell {
+            cursor: cell;
+        }
+
+        #dataTable.excel-grid td.cell-editing {
+            padding: 0;
+            background: #fff !important;
+        }
+
+        #dataTable.excel-grid .inline-cell-input {
+            width: 100%;
+            min-width: 60px;
+            height: 100%;
+            min-height: 26px;
+            border: none;
+            outline: 2px solid #0563c1;
+            outline-offset: -2px;
+            padding: 5px 8px;
+            font: inherit;
+            background: #fff;
+            box-sizing: border-box;
+        }
+
+        #dataTable.excel-grid .inline-cell-input.money-column {
+            text-align: right;
+        }
+
+        #dataTable.excel-grid td.cell-saving {
+            opacity: 0.6;
+        }
+
         .loading-mask {
             position: fixed;
             inset: 0;
@@ -715,6 +847,7 @@ sR2Sh8e3h3Knd6j1tceRIFU=
             let currentTab = 'data', allHeaders = [], allData = [], accessToken = null, tokenExpiry = 0;
             let currentPage = 1, rowsPerPage = 100, filteredData = [];
             let editingRowIndex = -1;
+            let inlineEditState = null;
             const moduleTitles = {
                 data: 'EXCEL WEB APP',
                 users: 'USER MODULE'
@@ -776,11 +909,199 @@ sR2Sh8e3h3Knd6j1tceRIFU=
 
             function renderModuleState() {
                 const isAdmin = isAdminUser();
+                const isDataTab = currentTab === 'data';
                 document.getElementById('pageTitle').innerText = moduleTitles[currentTab] || 'EXCEL WEB APP';
-                document.getElementById('summaryContainer').style.display = currentTab === 'data' ? 'block' : 'none';
-                document.getElementById('dataModuleBtn').classList.toggle('active', currentTab === 'data');
+                document.getElementById('summaryContainer').style.display = isDataTab ? 'block' : 'none';
+                document.getElementById('dataModuleBtn').classList.toggle('active', isDataTab);
                 document.getElementById('userModuleBtn').classList.toggle('active', currentTab === 'users');
                 document.getElementById('addUserBtn').style.display = isAdmin && currentTab === 'users' ? 'flex' : 'none';
+                document.getElementById('tableWrapper').classList.toggle('excel-mode', isDataTab);
+                document.getElementById('dataTable').classList.toggle('excel-grid', isDataTab);
+            }
+
+            const MONEY_HEADERS = new Set(["Treys Payments", "Bills Payments", "Total Costs", "Estimated", "Payments"]);
+
+            function getPaymentDetailColIndex() {
+                const payIdx = allHeaders.indexOf('Payments');
+                if (payIdx <= 0) return -1;
+                const prev = String(allHeaders[payIdx - 1] || '').trim();
+                if (MONEY_HEADERS.has(prev)) return -1;
+                return payIdx - 1;
+            }
+
+            function getCellClass(header, idx) {
+                if (idx === 0) return 'cell-label';
+                if (MONEY_HEADERS.has(header)) return 'money-column';
+                if (idx === getPaymentDetailColIndex()) return 'cell-payment-note';
+                return '';
+            }
+
+            function escapeHtml(text) {
+                return String(text)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function getCellRawString(val) {
+                if (val === null || val === undefined) return '';
+                return String(val);
+            }
+
+            function escapeAttr(text) {
+                return String(text)
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;');
+            }
+
+            /** Hiển thị đúng chuỗi gốc từ sheet — không làm tròn / đổi format */
+            function formatCellDisplay(header, val) {
+                const s = getCellRawString(val);
+                if (!s.trim()) return '';
+                if (String(val).startsWith('http')) return escapeHtml(s);
+                return escapeHtml(s);
+            }
+
+            function getCellEditValue(header, val) {
+                return getCellRawString(val);
+            }
+
+            function buildFullRowFromData(row) {
+                const arr = [];
+                allHeaders.forEach((_, i) => { arr[i] = row[i] ?? ''; });
+                return arr;
+            }
+
+            function setCellHtml(td, header, colIdx, val) {
+                const cls = getCellClass(header, colIdx);
+                const raw = getCellRawString(val);
+                td.className = `editable-cell${cls ? ' ' + cls : ''}`;
+                td.dataset.colIdx = colIdx;
+                td.setAttribute('data-raw-value', raw);
+                if (String(val).startsWith('http')) {
+                    td.innerHTML = `<a href="${escapeHtml(val)}" target="_blank" rel="noopener" style="color:#0563c1;font-weight:600;">Link</a>`;
+                } else {
+                    td.innerHTML = formatCellDisplay(header, val);
+                }
+            }
+
+            function cancelInlineEdit() {
+                if (!inlineEditState) return;
+                const { td, header, colIdx, row, originalValue } = inlineEditState;
+                inlineEditState = null;
+                row[colIdx] = originalValue;
+                td.classList.remove('cell-editing', 'cell-saving');
+                setCellHtml(td, header, colIdx, originalValue);
+            }
+
+            async function finishInlineEdit() {
+                if (!inlineEditState) return;
+                const { td, sheetRow, colIdx, header, originalValue, input, row } = inlineEditState;
+                inlineEditState = null;
+                const newValue = input.value;
+                td.classList.remove('cell-editing');
+
+                if (newValue === originalValue) {
+                    setCellHtml(td, header, colIdx, newValue);
+                    return;
+                }
+
+                const oldRowSnapshot = buildFullRowFromData(row);
+                row[colIdx] = newValue;
+                const newRow = buildFullRowFromData(row);
+                td.classList.add('cell-saving');
+
+                try {
+                    await saveRowData(sheetRow, newRow, oldRowSnapshot, { silent: true });
+                    const filtered = filteredData.find(r => r._sheetRow === sheetRow);
+                    if (filtered) filtered[colIdx] = newValue;
+                    updateSummary();
+                    setCellHtml(td, header, colIdx, newValue);
+                } catch (e) {
+                    row[colIdx] = originalValue;
+                    setCellHtml(td, header, colIdx, originalValue);
+                    alert("Error saving changes.");
+                } finally {
+                    td.classList.remove('cell-saving');
+                }
+            }
+
+            function startInlineEdit(td) {
+                const sheetRow = Number(td.dataset.sheetRow);
+                const colIdx = Number(td.dataset.colIdx);
+                const row = allData.find(r => r._sheetRow === sheetRow);
+                if (!row || Number.isNaN(colIdx)) return;
+
+                const header = allHeaders[colIdx] || '';
+                const rawVal = td.getAttribute('data-raw-value') ?? getCellEditValue(header, row[colIdx]);
+                const cellCls = getCellClass(header, colIdx);
+
+                td.classList.add('cell-editing');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'inline-cell-input' + (cellCls === 'money-column' ? ' money-column' : '');
+                input.value = rawVal;
+                td.innerHTML = '';
+                td.appendChild(input);
+                input.focus();
+                input.select();
+
+                inlineEditState = { td, sheetRow, colIdx, header, originalValue: rawVal, input, row };
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); finishInlineEdit(); }
+                    if (e.key === 'Escape') { e.preventDefault(); cancelInlineEdit(); }
+                });
+                input.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        if (!inlineEditState || inlineEditState.input !== input) return;
+                        finishInlineEdit();
+                    }, 120);
+                });
+            }
+
+            function initInlineCellEdit() {
+                document.getElementById('dataTable').addEventListener('click', async (e) => {
+                    if (currentTab !== 'data') return;
+                    if (e.target.closest('.excel-stt-cell, .excel-edit-cell, .excel-edit-btn, a')) return;
+
+                    const td = e.target.closest('td.editable-cell');
+                    if (!td || td.classList.contains('cell-editing')) return;
+
+                    if (inlineEditState) {
+                        if (inlineEditState.td === td) return;
+                        await finishInlineEdit();
+                    }
+                    startInlineEdit(td);
+                });
+            }
+
+            async function saveRowData(sheetRow, newRow, oldRow, opts = {}) {
+                const { silent = false, actionType = 'UPDATE', tab = currentTab } = opts;
+                document.getElementById('loading').style.display = 'flex';
+                try {
+                    const token = await getAccessToken();
+                    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${tab}!A${sheetRow}?valueInputOption=USER_ENTERED`, {
+                        method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values: [newRow] })
+                    });
+                    if (!res.ok) throw new Error('save failed');
+
+                    const user = JSON.parse(localStorage.getItem('userData') || '{}');
+                    const historyEntry = [new Date().toLocaleString('en-US'), user.id || 'N/A', actionType, tab, sheetRow, JSON.stringify(oldRow), JSON.stringify(newRow)];
+                    const histRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/history!A:A:append?valueInputOption=USER_ENTERED`, {
+                        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values: [historyEntry] })
+                    });
+                    if (!histRes.ok) throw new Error('history failed');
+                    if (!silent) alert("Success!");
+                } catch (e) {
+                    throw e;
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
+                }
             }
 
             function applyUserPermissions() {
@@ -800,29 +1121,75 @@ sR2Sh8e3h3Knd6j1tceRIFU=
 
             function renderHeaders() {
                 const head = document.getElementById('tableHead');
-                const moneyColumns = new Set(["Treys Payments", "Bills Payments", "Total Costs", "Estimated", "Payments"]);
-                head.innerHTML = `<tr><th style="width:50px;">Edit</th>${allHeaders.map(h => {
-                    if (shouldHideTableColumn(h)) return '';
-                    return `<th class="${moneyColumns.has(h) ? 'money-column' : ''}">${h}</th>`;
-                }).join('')}</tr>`;
+                const isExcel = currentTab === 'data';
+
+                if (!isExcel) {
+                    head.innerHTML = `<tr><th style="width:50px;">Edit</th>${allHeaders.map(h => {
+                        if (shouldHideTableColumn(h)) return '';
+                        return `<th class="${MONEY_HEADERS.has(h) ? 'money-column' : ''}">${h}</th>`;
+                    }).join('')}</tr>`;
+                    return;
+                }
+
+                const paymentDetailIdx = getPaymentDetailColIndex();
+                const paymentsIdx = allHeaders.indexOf('Payments');
+                let html = '<tr><th class="excel-stt-col">STT</th><th class="excel-edit-col">Edit</th>';
+
+                allHeaders.forEach((h, i) => {
+                    if (shouldHideTableColumn(h)) return;
+                    if (i === paymentDetailIdx && paymentsIdx >= 0) {
+                        html += '<th colspan="2" class="money-column">Payments</th>';
+                        return;
+                    }
+                    if (i === paymentsIdx && paymentDetailIdx >= 0) return;
+                    const cls = i === 0 ? 'cell-label-header' : (MONEY_HEADERS.has(h) ? 'money-column' : '');
+                    html += `<th class="${cls}">${escapeHtml(h || '')}</th>`;
+                });
+
+                head.innerHTML = html + '</tr>';
             }
 
             function renderTable() {
+                if (inlineEditState) cancelInlineEdit();
                 const tbody = document.getElementById('tableBody');
                 const start = (currentPage - 1) * rowsPerPage;
                 const pageData = filteredData.slice(start, start + rowsPerPage);
-                const moneyColumns = new Set(["Treys Payments", "Bills Payments", "Total Costs", "Estimated", "Payments"]);
+                const isExcel = currentTab === 'data';
 
-                tbody.innerHTML = pageData.map(row => {
+                tbody.innerHTML = pageData.map((row, rowIndex) => {
+                    const stt = start + rowIndex + 1;
                     const cells = allHeaders.map((header, idx) => {
                         if (shouldHideTableColumn(header)) return '';
                         const val = row[idx] ?? '';
-                        const className = moneyColumns.has(header) ? ' class="money-column"' : '';
-                        if (String(val).startsWith('http')) return `<td${className}><a href="${val}" target="_blank" style="color:var(--primary);font-weight:600;">Link</a></td>`;
+
+                        if (isExcel) {
+                            const cls = getCellClass(header, idx);
+                            const classAttr = `editable-cell${cls ? ' ' + cls : ''}`;
+                            if (String(val).startsWith('http')) {
+                                return `<td class="${classAttr}" data-col-idx="${idx}"><a href="${escapeHtml(val)}" target="_blank" rel="noopener" style="color:#0563c1;font-weight:600;">Link</a></td>`;
+                            }
+                            const raw = getCellRawString(val);
+                            return `<td class="${classAttr}" data-col-idx="${idx}" data-raw-value="${escapeAttr(raw)}">${formatCellDisplay(header, val)}</td>`;
+                        }
+
+                        const className = MONEY_HEADERS.has(header) ? ' class="money-column"' : '';
                         return `<td${className}>${val}</td>`;
                     }).join('');
-                    return `<tr><td><button onclick="openEditModal(${row._sheetRow})" style="border:none;background:#f1f5f9;padding:6px;border-radius:6px;cursor:pointer;"><i data-lucide="edit-3" style="width:16px;color:var(--primary);"></i></button></td>${cells}</tr>`;
+
+                    const sttCell = isExcel ? `<td class="excel-stt-cell">${stt}</td>` : '';
+                    const editCell = isExcel
+                        ? `<td class="excel-edit-cell"><button type="button" class="excel-edit-btn" onclick="openEditModal(${row._sheetRow})" title="Edit row"><i data-lucide="edit-3" style="width:14px;color:#333;"></i></button></td>`
+                        : `<td><button onclick="openEditModal(${row._sheetRow})" style="border:none;background:#f1f5f9;padding:6px;border-radius:6px;cursor:pointer;"><i data-lucide="edit-3" style="width:16px;color:var(--primary);"></i></button></td>`;
+
+                    const rowAttr = isExcel ? ` data-sheet-row="${row._sheetRow}"` : '';
+                    return `<tr${rowAttr}>${sttCell}${editCell}${cells}</tr>`;
                 }).join('');
+
+                if (isExcel) {
+                    tbody.querySelectorAll('td.editable-cell').forEach(td => {
+                        td.dataset.sheetRow = td.closest('tr')?.dataset.sheetRow || '';
+                    });
+                }
                 renderPagination();
                 lucide.createIcons();
             }
@@ -853,10 +1220,32 @@ sR2Sh8e3h3Knd6j1tceRIFU=
 
             function parseCurrency(val) {
                 if (!val) return 0;
-                // Format: $3.753,98 -> 3753.98
-                let s = String(val).replace('$', '').trim();
-                s = s.split('.').join(''); // Remove thousand dots
-                s = s.replace(',', '.'); // Change decimal comma to dot
+                let s = String(val).replace(/[^\d.,\-+]/g, '').trim();
+                if (!s) return 0;
+
+                const hasComma = s.includes(',');
+                const hasDot = s.includes('.');
+
+                if (hasComma && hasDot) {
+                    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+                        s = s.replace(/\./g, '').replace(',', '.');
+                    } else {
+                        s = s.replace(/,/g, '');
+                    }
+                } else if (hasComma) {
+                    const parts = s.split(',');
+                    if (parts.length === 2 && parts[1].length <= 2) {
+                        s = parts[0] + '.' + parts[1];
+                    } else {
+                        s = s.replace(/,/g, '');
+                    }
+                } else if (hasDot) {
+                    const parts = s.split('.');
+                    if (parts.length > 2 || (parts.length === 2 && parts[1].length > 2)) {
+                        s = s.replace(/\./g, '');
+                    }
+                }
+
                 return parseFloat(s) || 0;
             }
 
@@ -975,24 +1364,12 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 }
                 const inputs = document.querySelectorAll('.row-input');
                 const newRow = []; inputs.forEach(inp => newRow[parseInt(inp.dataset.idx)] = inp.value);
-                const oldRow = allData.find(r => r._sheetRow === editingRowIndex);
-                document.getElementById('loading').style.display = 'flex';
+                const oldRow = buildFullRowFromData(allData.find(r => r._sheetRow === editingRowIndex) || []);
                 try {
-                    const token = await getAccessToken();
-                    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${currentTab}!A${editingRowIndex}?valueInputOption=USER_ENTERED`, {
-                        method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ values: [newRow] })
-                    });
-                    if (!res.ok) throw new Error();
-
-                    const user = JSON.parse(localStorage.getItem('userData') || '{}');
-                    const historyEntry = [new Date().toLocaleString('en-US'), user.id || 'N/A', actionType, currentTab, editingRowIndex, JSON.stringify(oldRow), JSON.stringify(newRow)];
-                    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/history!A:A:append?valueInputOption=USER_ENTERED`, {
-                        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ values: [historyEntry] })
-                    });
-                    alert("Success!"); closeEditModal(); await fetchData();
-                } catch (e) { alert("Error saving changes."); } finally { document.getElementById('loading').style.display = 'none'; }
+                    await saveRowData(editingRowIndex, newRow, oldRow, { actionType });
+                    closeEditModal();
+                    await fetchData();
+                } catch (e) { alert("Error saving changes."); }
             }
 
             async function saveNewUser() {
@@ -1087,6 +1464,7 @@ sR2Sh8e3h3Knd6j1tceRIFU=
 
             async function init() {
                 lucide.createIcons();
+                initInlineCellEdit();
                 if (localStorage.getItem('isLoggedIn')) {
                     const u = JSON.parse(localStorage.getItem('userData') || '{}');
                     document.getElementById('userNameDisplay').innerText = u.name || '';
