@@ -687,6 +687,93 @@
             color: var(--primary);
             background: #f8fafc;
         }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 5mm;
+            }
+
+            html,
+            body {
+                width: 210mm;
+                height: 297mm;
+                overflow: hidden !important;
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            #loginOverlay,
+            #editModal,
+            #loading,
+            .header-container,
+            #summaryContainer,
+            #pagination {
+                display: none !important;
+            }
+
+            #mainContent {
+                display: block !important;
+            }
+
+            body.print-data-table #tableWrapper {
+                position: absolute !important;
+                left: 0;
+                top: 0;
+                transform: scale(var(--print-scale, 1));
+                transform-origin: top left;
+                width: calc(100% / var(--print-scale, 1));
+                max-height: none !important;
+                overflow: visible !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                background: #fff !important;
+                page-break-after: avoid !important;
+                page-break-inside: avoid !important;
+            }
+
+            #dataTable {
+                width: 100% !important;
+            }
+
+            #dataTable.excel-grid {
+                font-size: 7pt;
+                line-height: 1.1;
+            }
+
+            #dataTable.excel-grid th,
+            #dataTable.excel-grid td {
+                padding: 1px 3px !important;
+            }
+
+            #dataTable.excel-grid th.money-column,
+            #dataTable.excel-grid td.money-column,
+            #dataTable.excel-grid td.cell-payment-note {
+                white-space: nowrap;
+            }
+
+            #dataTable .excel-edit-col,
+            #dataTable .excel-edit-cell {
+                display: none !important;
+            }
+
+            #dataTable.excel-grid thead th {
+                position: static !important;
+            }
+
+            #dataTable,
+            #dataTable * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            #dataTable tr {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+        }
     </style>
 </head>
 
@@ -1483,9 +1570,64 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 await saveEdit('RESTORE');
             }
 
+            let printLayoutState = null;
+
+            function getPrintableHeightPx() {
+                const marginMm = 10;
+                const pageHeightMm = 297;
+                return (pageHeightMm - marginMm) * (96 / 25.4);
+            }
+
+            function applyPrintScale() {
+                const table = document.getElementById('dataTable');
+                const wrapper = document.getElementById('tableWrapper');
+                if (!table || !wrapper) return;
+
+                const maxHeight = getPrintableHeightPx();
+                const tableHeight = table.getBoundingClientRect().height;
+                const scale = tableHeight > maxHeight ? (maxHeight / tableHeight) * 0.97 : 1;
+                wrapper.style.setProperty('--print-scale', String(scale));
+            }
+
+            function preparePrintLayout() {
+                if (currentTab !== 'data') return;
+
+                printLayoutState = {
+                    currentPage,
+                    rowsPerPage
+                };
+
+                currentPage = 1;
+                rowsPerPage = Math.max(filteredData.length, 1);
+                renderTable();
+                document.body.classList.add('print-data-table');
+
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(applyPrintScale);
+                });
+            }
+
+            function resetPrintLayout() {
+                if (!printLayoutState) return;
+
+                currentPage = printLayoutState.currentPage;
+                rowsPerPage = printLayoutState.rowsPerPage;
+                printLayoutState = null;
+
+                document.body.classList.remove('print-data-table');
+                document.getElementById('tableWrapper')?.style.removeProperty('--print-scale');
+                renderTable();
+            }
+
+            function initPrintLayout() {
+                window.addEventListener('beforeprint', preparePrintLayout);
+                window.addEventListener('afterprint', resetPrintLayout);
+            }
+
             async function init() {
                 lucide.createIcons();
                 initInlineCellEdit();
+                initPrintLayout();
                 if (localStorage.getItem('isLoggedIn')) {
                     const u = JSON.parse(localStorage.getItem('userData') || '{}');
                     document.getElementById('userNameDisplay').innerText = u.name || '';
