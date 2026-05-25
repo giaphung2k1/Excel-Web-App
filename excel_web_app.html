@@ -790,19 +790,19 @@
                 <tbody id="summaryTableBody">
                     <tr>
                         <th>Total:</th>
-                        <td id="tot-trey">$0,00</td>
-                        <td id="tot-bill">$0,00</td>
-                        <td id="tot-cost">$0,00</td>
-                        <td id="tot-est">$0,00</td>
-                        <td id="tot-payments">$0,00</td>
+                        <td id="tot-trey">$0.00</td>
+                        <td id="tot-bill">$0.00</td>
+                        <td id="tot-cost">$0.00</td>
+                        <td id="tot-est">$0.00</td>
+                        <td id="tot-payments">$0.00</td>
                     </tr>
                     <tr>
                         <th class="highlight">Total Build Cost:</th>
-                        <td id="tbc-trey" class="highlight">$0,00</td>
-                        <td id="tbc-bill" class="highlight">$0,00</td>
-                        <td id="tbc-cost" class="highlight">$0,00</td>
-                        <td id="tbc-est" class="highlight">$0,00</td>
-                        <td id="tbc-payments" class="highlight">$0,00</td>
+                        <td id="tbc-trey" class="highlight">$0.00</td>
+                        <td id="tbc-bill" class="highlight">$0.00</td>
+                        <td id="tbc-cost" class="highlight">$0.00</td>
+                        <td id="tbc-est" class="highlight">$0.00</td>
+                        <td id="tbc-payments" class="highlight">$0.00</td>
                     </tr>
                 </tbody>
             </table>
@@ -1266,10 +1266,14 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 return parseFloat(s) || 0;
             }
 
-            function formatCurrency(val) {
-                const parts = val.toFixed(2).split('.');
-                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                return `$${parts[0]},${parts[1]}`;
+            /** Summary: $34,650.00 (US — comma thousands, dot decimals) */
+            function formatSummaryCurrency(val) {
+                const n = Number(val) || 0;
+                const negative = n < 0;
+                const abs = Math.abs(n);
+                const parts = abs.toFixed(2).split('.');
+                const intFmt = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                return `${negative ? '-' : ''}$${intFmt}.${parts[1]}`;
             }
 
             function updateSummary() {
@@ -1323,8 +1327,8 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 });
 
                 Object.keys(cols).forEach(k => {
-                    document.getElementById(cols[k].elTot).innerText = formatCurrency(cols[k].total);
-                    document.getElementById(cols[k].elTbc).innerText = formatCurrency(cols[k].total + cols[k].extra);
+                    document.getElementById(cols[k].elTot).innerText = formatSummaryCurrency(cols[k].total);
+                    document.getElementById(cols[k].elTbc).innerText = formatSummaryCurrency(cols[k].total + cols[k].extra);
                 });
             }
 
