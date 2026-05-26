@@ -961,6 +961,7 @@ sR2Sh8e3h3Knd6j1tceRIFU=
             let currentPage = 1, rowsPerPage = 100, filteredData = [];
             let editingRowIndex = -1;
             let inlineEditState = null;
+            let cachedDataSheetId = null;
             const moduleTitles = {
                 data: 'EXCEL WEB APP',
                 users: 'USER MODULE'
@@ -977,24 +978,96 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 return accessToken;
             }
 
+            function isRowEmpty(row) {
+                return allHeaders.every((_, i) => !String(row[i] ?? '').trim());
+            }
+
+            function countEmptyRowsBeforeLastFour() {
+                if (allData.length < 4) return 0;
+                const firstLastFourIdx = allData.length - 4;
+                let count = 0;
+                for (let i = firstLastFourIdx - 1; i >= 0; i--) {
+                    if (!isRowEmpty(allData[i])) break;
+                    count++;
+                }
+                return count;
+            }
+
+            async function getDataSheetId() {
+                if (cachedDataSheetId !== null) return cachedDataSheetId;
+                const token = await getAccessToken();
+                const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}?fields=sheets.properties`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error('sheet metadata failed');
+                const data = await res.json();
+                const sheet = (data.sheets || []).find(s => s.properties?.title === 'data');
+                if (!sheet) throw new Error('data sheet not found');
+                cachedDataSheetId = sheet.properties.sheetId;
+                return cachedDataSheetId;
+            }
+
+            async function insertSheetRowsAt(sheetRowOneBased, count) {
+                const token = await getAccessToken();
+                const sheetId = await getDataSheetId();
+                const startIndex = sheetRowOneBased - 1;
+                const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}:batchUpdate`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        requests: [{
+                            insertDimension: {
+                                range: {
+                                    sheetId,
+                                    dimension: 'ROWS',
+                                    startIndex,
+                                    endIndex: startIndex + count
+                                },
+                                inheritFromBefore: false
+                            }
+                        }]
+                    })
+                });
+                if (!res.ok) throw new Error('insert rows failed');
+            }
+
+            async function ensureBlankRowsBeforeLastFour() {
+                if (allData.length < 4) return false;
+                const emptyBefore = countEmptyRowsBeforeLastFour();
+                const need = 2 - emptyBefore;
+                if (need <= 0) return false;
+                const firstLastFourIdx = allData.length - 4;
+                await insertSheetRowsAt(allData[firstLastFourIdx]._sheetRow, need);
+                return true;
+            }
+
+            async function loadSheetValues() {
+                const token = await getAccessToken();
+                const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.tabs[currentTab].range}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await res.json();
+                const rawRows = data.values || [];
+
+                if (rawRows.length > 0) {
+                    allHeaders = rawRows[0];
+                    allData = rawRows.slice(1).map((row, i) => {
+                        const arr = Array.isArray(row) ? [...row] : [];
+                        arr._sheetRow = i + 2;
+                        return arr;
+                    });
+                } else {
+                    allHeaders = [];
+                    allData = [];
+                }
+            }
+
             async function fetchData() {
                 document.getElementById('loading').style.display = 'flex';
                 try {
-                    const token = await getAccessToken();
-                    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.tabs[currentTab].range}`, { headers: { Authorization: `Bearer ${token}` } });
-                    const data = await res.json();
-                    const rawRows = data.values || [];
-
-                    if (rawRows.length > 0) {
-                        allHeaders = rawRows[0];
-                        allData = rawRows.slice(1).map((row, i) => {
-                            const arr = Array.isArray(row) ? [...row] : [];
-                            arr._sheetRow = i + 2;
-                            return arr;
-                        });
-                    } else {
-                        allHeaders = [];
-                        allData = [];
+                    await loadSheetValues();
+                    if (currentTab === 'data' && await ensureBlankRowsBeforeLastFour()) {
+                        await loadSheetValues();
                     }
                     currentPage = 1;
                     filteredData = [...allData];
