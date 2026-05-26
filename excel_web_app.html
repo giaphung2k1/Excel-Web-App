@@ -1153,10 +1153,11 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 if (!inlineEditState) return;
                 const { td, sheetRow, colIdx, header, originalValue, input, row } = inlineEditState;
                 inlineEditState = null;
-                const newValue = input.value;
+                let newValue = input.value.trim();
+                if (isEditableMoneyColumn(header)) newValue = formatUsMoneyInput(newValue);
                 td.classList.remove('cell-editing');
 
-                if (newValue === originalValue) {
+                if (newValue === originalValue || (isEditableMoneyColumn(header) && newValue === formatUsMoneyInput(originalValue))) {
                     setCellHtml(td, header, colIdx, newValue);
                     return;
                 }
@@ -1426,6 +1427,18 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 return `${negative ? '-' : ''}$${intFmt}.${parts[1]}`;
             }
 
+            function isEditableMoneyColumn(header) {
+                return MONEY_HEADERS.has(header) && header !== 'Total Costs';
+            }
+
+            /** Chuẩn hóa ô tiền khi lưu: 3 → $3.00, 31000 → $31,000.00 */
+            function formatUsMoneyInput(value) {
+                const s = String(value ?? '').trim();
+                if (!s) return '';
+                if (!/[\d]/.test(s)) return s;
+                return formatSummaryCurrency(parseCurrency(s));
+            }
+
             function updateSummary() {
                 const totalItemsList = [
                     "Plans, Demo, Survey", "Permits", "Trash / Site Maintenance", "Trash / Site Maintenace",
@@ -1562,7 +1575,11 @@ sR2Sh8e3h3Knd6j1tceRIFU=
                 const row = allData.find(r => r._sheetRow === editingRowIndex);
                 const oldRow = buildFullRowFromData(row || []);
                 inputs.forEach(inp => {
-                    if (row) row[parseInt(inp.dataset.idx)] = inp.value;
+                    const idx = parseInt(inp.dataset.idx);
+                    const h = allHeaders[idx] || '';
+                    let v = inp.value;
+                    if (isEditableMoneyColumn(h)) v = formatUsMoneyInput(v);
+                    if (row) row[idx] = v;
                 });
                 if (row) recalculateRowTotalCosts(row);
                 const newRow = buildFullRowFromData(row || []);
